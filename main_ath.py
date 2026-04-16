@@ -14,9 +14,7 @@ def get_stock_list():
     stock_dict = {}
     print("正在取得上市與上櫃股票清單...")
     
-    # 上市
     twse_url = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"
-    # 上櫃
     tpex_url = "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes"
     
     try:
@@ -46,12 +44,11 @@ def send_discord_message(content):
     for chunk in chunks:
         requests.post(webhook_url, json={"content": chunk})
 
-def find_ath_stocks():
+def find_ath_close_stocks():
     stock_dict = get_stock_list()
     tickers = list(stock_dict.keys())
     
-    # 提醒：period="max" 會下載所有歷史資料
-    print(f"開始分析 {len(tickers)} 檔股票的歷史高點 (此步驟較慢)...")
+    print(f"開始分析 {len(tickers)} 檔股票的歷史收盤價 (此步驟較慢)...")
     data = yf.download(" ".join(tickers), period="max", group_by='ticker', threads=True, progress=False)
     
     ath_stocks = []
@@ -60,33 +57,33 @@ def find_ath_stocks():
     
     for ticker in tickers:
         try:
-            df = data[ticker].dropna(subset=['High', 'Close'])
-            if df.empty or len(df) < 20: # 排除剛掛牌資料過少的股票
+            # 確保有收盤價資料
+            df = data[ticker].dropna(subset=['Close'])
+            if df.empty or len(df) < 20: 
                 continue
             
-            # 取得歷史最高價 (排除今天)
-            historical_max = df['High'].iloc[:-1].max()
-            # 取得今天最高價與收盤價
-            today_high = df['High'].iloc[-1]
+            # 取得歷史最高「收盤價」 (排除今天)
+            historical_max_close = df['Close'].iloc[:-1].max()
+            # 取得今天「收盤價」
             today_close = df['Close'].iloc[-1]
             
-            # 判斷是否創歷史新高
-            if pd.notna(today_high) and pd.notna(historical_max):
-                if today_high >= historical_max:
+            # 判斷今日收盤價是否創歷史新高
+            if pd.notna(today_close) and pd.notna(historical_max_close):
+                if today_close >= historical_max_close:
                     clean_code = ticker.split('.')[0]
                     name = stock_dict[ticker]
                     yahoo_link = f"<https://tw.stock.yahoo.com/quote/{clean_code}/technical-analysis>"
-                    ath_stocks.append(f"🚀 **{clean_code} {name}** | 收盤價: `{today_close:.2f}`\n🔗 {yahoo_link}")
+                    ath_stocks.append(f"🚀 **{clean_code} {name}** | 歷史新高收盤價: `{today_close:.2f}`\n🔗 {yahoo_link}")
         except:
             continue
 
-    message = f"🏆 **台股 {today_str} 創歷史新高清單**\n" + "="*30 + "\n"
+    message = f"🏆 **台股 {today_str} 收盤價創歷史新高清單**\n" + "="*30 + "\n"
     if ath_stocks:
         message += "\n\n".join(ath_stocks)
     else:
-        message += "今天沒有股票創歷史新高。"
+        message += "今天沒有股票的收盤價創歷史新高。"
     
     send_discord_message(message)
 
 if __name__ == "__main__":
-    find_ath_stocks()
+    find_ath_close_stocks()
