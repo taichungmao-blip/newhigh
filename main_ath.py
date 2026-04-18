@@ -73,7 +73,10 @@ def find_ath_close_stocks():
                     clean_code = ticker.split('.')[0]
                     name = stock_dict[ticker]
                     yahoo_link = f"<https://tw.stock.yahoo.com/quote/{clean_code}/technical-analysis>"
-                    ath_stocks.append(f"🚀 **{clean_code} {name}** | 歷史新高收盤價: `{today_close:.2f}`\n🔗 {yahoo_link}")
+                    # 取得 YYYY/MM/DD 格式的日期字串
+                    today_slash_str = datetime.now(tw_tz).strftime('%Y/%m/%d')
+                    # 將日期變數加入字串中
+                    ath_stocks.append(f"🚀 **{clean_code} {name}** | {today_slash_str} 歷史新高收盤價: `{today_close:.2f}`\n🔗 {yahoo_link}")
         except:
             continue
 
