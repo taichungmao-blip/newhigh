@@ -2,7 +2,7 @@ name: TW Stock 1-Year Low Alert
 
 on:
   schedule:
-    # 台灣時間 16:30 執行 (UTC 時間 08:00)
+    # 台灣時間 16:40 執行 (UTC 時間 08:00)
     # 僅在週一到週五執行
     - cron: '0 8 * * 1-5'
   workflow_dispatch: # 允許在 GitHub 網頁手動觸發測試
