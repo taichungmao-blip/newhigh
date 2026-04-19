@@ -53,7 +53,12 @@ def find_ath_close_stocks():
     
     ath_stocks = []
     tw_tz = pytz.timezone('Asia/Taipei')
-    today_str = datetime.now(tw_tz).strftime('%Y-%m-%d')
+    now = datetime.now(tw_tz)
+    
+    # 標題用的日期格式
+    today_str = now.strftime('%Y-%m-%d')
+    # 內文用的日期格式
+    today_slash_str = now.strftime('%Y/%m/%d')
     
     for ticker in tickers:
         try:
@@ -61,6 +66,10 @@ def find_ath_close_stocks():
             df = data[ticker].dropna(subset=['Close'])
             if df.empty or len(df) < 20: 
                 continue
+            
+            # --- 計算掛牌後創歷史新高的次數 ---
+            previous_max = df['Close'].shift(1).cummax()
+            ath_count = (df['Close'] > previous_max).sum()
             
             # 取得歷史最高「收盤價」 (排除今天)
             historical_max_close = df['Close'].iloc[:-1].max()
@@ -73,10 +82,7 @@ def find_ath_close_stocks():
                     clean_code = ticker.split('.')[0]
                     name = stock_dict[ticker]
                     yahoo_link = f"<https://tw.stock.yahoo.com/quote/{clean_code}/technical-analysis>"
-                    # 取得 YYYY/MM/DD 格式的日期字串
-                    today_slash_str = datetime.now(tw_tz).strftime('%Y/%m/%d')
-                    # 將日期變數加入字串中
-                    ath_stocks.append(f"🚀 **{clean_code} {name}** | {today_slash_str} 歷史新高收盤價: `{today_close:.2f}`\n🔗 {yahoo_link}")
+                    ath_stocks.append(f"🚀 **{clean_code} {name}** | {today_slash_str} 歷史新高收盤價: `{today_close:.2f}` (第 {ath_count} 次創高)\n🔗 {yahoo_link}")
         except:
             continue
 
