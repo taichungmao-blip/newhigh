@@ -49,6 +49,7 @@ def find_ath_close_stocks():
     tickers = list(stock_dict.keys())
     
     print(f"開始分析 {len(tickers)} 檔股票的歷史收盤價 (此步驟較慢)...")
+    # yf.download 會同時取得 Open, High, Low, Close, Volume
     data = yf.download(" ".join(tickers), period="max", group_by='ticker', threads=True, progress=False)
     
     ath_stocks = []
@@ -73,17 +74,38 @@ def find_ath_close_stocks():
             
             # 取得歷史最高「收盤價」 (排除今天)
             historical_max_close = df['Close'].iloc[:-1].max()
-            # 取得今天「收盤價」
+            # 取得今天「收盤價」與「成交量(股)」
             today_close = df['Close'].iloc[-1]
+            today_volume = df['Volume'].iloc[-1]
             
             # 判斷今日收盤價是否創歷史新高
             if pd.notna(today_close) and pd.notna(historical_max_close):
                 if today_close >= historical_max_close:
                     clean_code = ticker.split('.')[0]
                     name = stock_dict[ticker]
+                    
+                    # 換算成交量為「張數」
+                    volume_lots = int(today_volume / 1000) if pd.notna(today_volume) else "不清楚"
+                    
+                    # 取得本益比 (僅針對創高股票呼叫，節省執行時間)
+                    try:
+                        ticker_info = yf.Ticker(ticker).info
+                        pe_ratio = ticker_info.get('trailingPE')
+                        if pe_ratio is not None:
+                            pe_ratio = round(pe_ratio, 2)
+                        else:
+                            pe_ratio = "不清楚"
+                    except:
+                        pe_ratio = "不清楚"
+
                     yahoo_link = f"<https://tw.stock.yahoo.com/quote/{clean_code}/technical-analysis>"
-                    ath_stocks.append(f"🚀 **{clean_code} {name}** | {today_slash_str} 歷史新高收盤價: `{today_close:.2f}` (第 {ath_count} 次創高)\n🔗 {yahoo_link}")
-        except:
+                    
+                    # 組合 Discord 訊息，加入成交量與本益比
+                    msg = (f"🚀 **{clean_code} {name}** | {today_slash_str} 歷史新高收盤價: `{today_close:.2f}` (第 {ath_count} 次創高)\n"
+                           f"📊 成交量: `{volume_lots}` 張 | 本益比: `{pe_ratio}`\n"
+                           f"🔗 {yahoo_link}")
+                    ath_stocks.append(msg)
+        except Exception:
             continue
 
     message = f"🏆 **台股 {today_str} 收盤價創歷史新高清單**\n" + "="*30 + "\n"
