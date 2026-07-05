@@ -5,6 +5,7 @@ import pandas as pd
 import urllib3
 from datetime import datetime
 import pytz
+from bs4 import BeautifulSoup  # 新增 BeautifulSoup
 
 # 關閉略過 SSL 驗證警告
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -33,6 +34,31 @@ def get_stock_list():
     except Exception as e:
         print(f"取得清單失敗: {e}")
     return stock_dict
+
+def get_yahoo_pe(stock_code):
+    """直接爬取台灣奇摩股市網頁上的本益比"""
+    url = f"https://tw.stock.yahoo.com/quote/{stock_code}/technical-analysis"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    try:
+        res = requests.get(url, headers=headers, timeout=5, verify=False)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, 'html.parser')
+            # 根據截圖中的特徵：尋找包含「本益比 (同業平均)」的 span
+            pe_label = soup.find("span", string=lambda t: t and "本益比" in t)
+            if pe_label:
+                # 找到它的兄弟節點或父節點底下的數值 span (字體為 Fz(16px))
+                pe_value_span = pe_label.find_parent().find("span", class_=lambda c: c and "Fz(16px)" in c)
+                if pe_value_span:
+                    # 取得內容 (例如 "23.40 (22.95)")，並只切出前面的本益比數字
+                    full_text = pe_value_span.get_text(strip=True)
+                    pe_num = full_text.split("(")[0].strip()
+                    return pe_num
+    except Exception as e:
+        print(f"爬取 {stock_code} 本益比失敗: {e}")
+    # 失敗或找不到時回傳「不清楚」以保持一致性
+    return "不清楚"
 
 def send_discord_message(content):
     """發送至 Discord"""
@@ -87,16 +113,8 @@ def find_ath_close_stocks():
                     # 換算成交量為「張數」
                     volume_lots = int(today_volume / 1000) if pd.notna(today_volume) else "不清楚"
                     
-                    # 取得本益比 (僅針對創高股票呼叫，節省執行時間)
-                    try:
-                        ticker_info = yf.Ticker(ticker).info
-                        pe_ratio = ticker_info.get('trailingPE')
-                        if pe_ratio is not None:
-                            pe_ratio = round(pe_ratio, 2)
-                        else:
-                            pe_ratio = "不清楚"
-                    except:
-                        pe_ratio = "不清楚"
+                    # 改用爬蟲函式取得奇摩股市的本益比
+                    pe_ratio = get_yahoo_pe(clean_code)
 
                     yahoo_link = f"<https://tw.stock.yahoo.com/quote/{clean_code}/technical-analysis>"
                     
