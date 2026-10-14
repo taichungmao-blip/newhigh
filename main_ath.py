@@ -116,13 +116,27 @@ def find_ath_close_stocks():
                     # 改用爬蟲函式取得奇摩股市的本益比
                     pe_ratio = get_yahoo_pe(clean_code)
 
-                    yahoo_link = f"<https://tw.stock.yahoo.com/quote/{clean_code}/technical-analysis>"
+                    # --- 新增：判斷本益比是否小於 25 ---
+                    is_pe_valid = False
+                    try:
+                        if pe_ratio != "不清楚":
+                            # 將字串轉為浮點數，若有逗號一併去除 (避免格式報錯)
+                            pe_float = float(pe_ratio.replace(',', ''))
+                            if pe_float < 25:
+                                is_pe_valid = True
+                    except ValueError:
+                        # 遇到本益比為 "-" (例如虧損公司) 或其他非數字字串時，忽略該檔股票
+                        pass
                     
-                    # 組合 Discord 訊息，加入成交量與本益比
-                    msg = (f"🚀 **{clean_code} {name}** | {today_slash_str} 歷史新高收盤價: `{today_close:.2f}` (第 {ath_count} 次創高)\n"
-                           f"📊 成交量: `{volume_lots}` 張 | 本益比: `{pe_ratio}`\n"
-                           f"🔗 {yahoo_link}")
-                    ath_stocks.append(msg)
+                    # 只有在本益比有效且小於 25 時，才加入通知清單
+                    if is_pe_valid:
+                        yahoo_link = f"<https://tw.stock.yahoo.com/quote/{clean_code}/technical-analysis>"
+                        
+                        # 組合 Discord 訊息
+                        msg = (f"🚀 **{clean_code} {name}** | {today_slash_str} 歷史新高收盤價: `{today_close:.2f}` (第 {ath_count} 次創高)\n"
+                               f"📊 成交量: `{volume_lots}` 張 | 本益比: `{pe_ratio}`\n"
+                               f"🔗 {yahoo_link}")
+                        ath_stocks.append(msg)
         except Exception:
             continue
 
