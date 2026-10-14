@@ -116,7 +116,7 @@ def find_ath_close_stocks():
                     # 改用爬蟲函式取得奇摩股市的本益比
                     pe_ratio = get_yahoo_pe(clean_code)
 
-                    # --- 新增：判斷本益比是否小於 25 ---
+                    # --- 判斷本益比是否小於 25 ---
                     is_pe_valid = False
                     try:
                         if pe_ratio != "不清楚":
@@ -132,7 +132,7 @@ def find_ath_close_stocks():
                     if is_pe_valid:
                         yahoo_link = f"<https://tw.stock.yahoo.com/quote/{clean_code}/technical-analysis>"
                         
-                        # 組合 Discord 訊息
+                        # 組合 Discord 訊息，加入成交量與本益比
                         msg = (f"🚀 **{clean_code} {name}** | {today_slash_str} 歷史新高收盤價: `{today_close:.2f}` (第 {ath_count} 次創高)\n"
                                f"📊 成交量: `{volume_lots}` 張 | 本益比: `{pe_ratio}`\n"
                                f"🔗 {yahoo_link}")
@@ -140,11 +140,12 @@ def find_ath_close_stocks():
         except Exception:
             continue
 
-    message = f"🏆 **台股 {today_str} 收盤價創歷史新高清單**\n" + "="*30 + "\n"
+    # 更新通知標題
+    message = f"🏆 **台股 {today_str} 本益比低於25倍 收盤價創歷史新高清單**\n" + "="*30 + "\n"
     if ath_stocks:
         message += "\n\n".join(ath_stocks)
     else:
-        message += "今天沒有股票的收盤價創歷史新高。"
+        message += "今天沒有本益比低於25倍的股票收盤價創歷史新高。"
     
     send_discord_message(message)
 
